@@ -19,6 +19,13 @@ export const mandiPriceQuerySchema = z.object({
 
 export type MandiPriceQuery = z.infer<typeof mandiPriceQuerySchema>;
 
+/** Request shape accepted by the `getMarketCommodities` callable function. */
+export const marketCommoditiesQuerySchema = z.object({
+  state: z.string().trim().min(1),
+});
+
+export type MarketCommoditiesQuery = z.infer<typeof marketCommoditiesQuerySchema>;
+
 /** Which upstream dataset a normalized record (or the overall response) came from. */
 export type MandiDataSource = "primary" | "fallback";
 

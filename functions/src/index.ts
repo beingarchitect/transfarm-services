@@ -1,2 +1,2 @@
-export { getMandiMarketPrices } from "./features/market";
+export { getMandiMarketPrices, getMarketCommodities } from "./features/market";
 export { getWeatherForecast } from "./features/weather";
