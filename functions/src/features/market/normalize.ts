@@ -20,9 +20,9 @@ export function normalizePrimaryRecord(raw: PrimaryRawRecord): NormalizedMandiPr
     commodity: toStringOrEmpty(raw.Commodity),
     variety: toStringOrEmpty(raw.Variety),
     grade: raw.Grade?.trim() || null,
-    minPrice: toNumberOrNull(raw["Min Price"]),
-    maxPrice: toNumberOrNull(raw["Max Price"]),
-    modalPrice: toNumberOrNull(raw["Modal Price"]),
+    minPrice: toNumberOrNull(raw.Min_Price),
+    maxPrice: toNumberOrNull(raw.Max_Price),
+    modalPrice: toNumberOrNull(raw.Modal_Price),
     arrivalDate: toStringOrEmpty(raw.Arrival_Date),
   };
 }

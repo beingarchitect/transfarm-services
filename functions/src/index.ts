@@ -1,1 +1,1 @@
-export { getMandiMarketPrices } from "./features/mandi-market";
+export { getMandiMarketPrices } from "./features/market";

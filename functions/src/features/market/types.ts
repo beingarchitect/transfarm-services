@@ -52,9 +52,9 @@ export interface PrimaryRawRecord {
   Commodity?: string;
   Variety?: string;
   Grade?: string;
-  "Min Price"?: string | number;
-  "Max Price"?: string | number;
-  "Modal Price"?: string | number;
+  Min_Price?: string | number;
+  Max_Price?: string | number;
+  Modal_Price?: string | number;
   Arrival_Date?: string;
 }
 
