@@ -26,8 +26,8 @@ export const marketCommoditiesQuerySchema = z.object({
 
 export type MarketCommoditiesQuery = z.infer<typeof marketCommoditiesQuerySchema>;
 
-/** Which upstream dataset a normalized record (or the overall response) came from. */
-export type MandiDataSource = "primary" | "fallback";
+/** Which upstream dataset or cache served the normalized records. */
+export type MandiDataSource = "primary" | "fallback" | "firestore";
 
 /** Normalized market price record, independent of which upstream dataset produced it. */
 export interface NormalizedMandiPrice {
@@ -35,6 +35,7 @@ export interface NormalizedMandiPrice {
   district: string;
   market: string;
   commodity: string;
+  category?: string | null;
   variety: string;
   grade: string | null;
   minPrice: number | null;

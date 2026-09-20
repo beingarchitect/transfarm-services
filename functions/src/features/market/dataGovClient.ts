@@ -7,18 +7,20 @@ export interface FetchResourceOptions {
   apiKey: string;
   /** Filter keys as expected by the given resource (case differs per dataset). */
   filters?: Record<string, string | undefined>;
+  sort?: Record<string, "asc" | "desc">;
   limit: number;
   offset: number;
 }
 
 /**
  * Fetches records from a data.gov.in resource ("api.data.gov.in/resource/<id>"),
- * applying `filters[<key>]=<value>` query params as the API expects.
+ * applying `filters[<key>]=<value>` and `sort[<key>]=<dir>` query params as the API expects.
  */
 export async function fetchDataGovResource<T>({
   resourceId,
   apiKey,
   filters = {},
+  sort,
   limit,
   offset,
 }: FetchResourceOptions): Promise<T[]> {
@@ -31,6 +33,12 @@ export async function fetchDataGovResource<T>({
   for (const [key, value] of Object.entries(filters)) {
     if (value !== undefined && value !== "") {
       url.searchParams.set(`filters[${key}]`, value);
+    }
+  }
+
+  if (sort) {
+    for (const [key, direction] of Object.entries(sort)) {
+      url.searchParams.set(`sort[${key}]`, direction);
     }
   }
 

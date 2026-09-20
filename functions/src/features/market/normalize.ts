@@ -1,3 +1,4 @@
+import { findCategoryForCommodity } from "./commodityCatalog";
 import { FallbackRawRecord, NormalizedMandiPrice, PrimaryRawRecord } from "./types";
 
 function toNumberOrNull(value: string | number | undefined): number | null {
@@ -13,11 +14,13 @@ function toStringOrEmpty(value: string | undefined): string {
 }
 
 export function normalizePrimaryRecord(raw: PrimaryRawRecord): NormalizedMandiPrice {
+  const commodity = toStringOrEmpty(raw.Commodity);
   return {
     state: toStringOrEmpty(raw.State),
     district: toStringOrEmpty(raw.District),
     market: toStringOrEmpty(raw.Market),
-    commodity: toStringOrEmpty(raw.Commodity),
+    commodity,
+    category: findCategoryForCommodity(commodity),
     variety: toStringOrEmpty(raw.Variety),
     grade: raw.Grade?.trim() || null,
     minPrice: toNumberOrNull(raw.Min_Price),
@@ -28,11 +31,13 @@ export function normalizePrimaryRecord(raw: PrimaryRawRecord): NormalizedMandiPr
 }
 
 export function normalizeFallbackRecord(raw: FallbackRawRecord): NormalizedMandiPrice {
+  const commodity = toStringOrEmpty(raw.commodity);
   return {
     state: toStringOrEmpty(raw.state),
     district: toStringOrEmpty(raw.district),
     market: toStringOrEmpty(raw.market),
-    commodity: toStringOrEmpty(raw.commodity),
+    commodity,
+    category: findCategoryForCommodity(commodity),
     variety: toStringOrEmpty(raw.variety),
     grade: raw.grade?.trim() || null,
     minPrice: toNumberOrNull(raw.min_price),
@@ -41,3 +46,4 @@ export function normalizeFallbackRecord(raw: FallbackRawRecord): NormalizedMandi
     arrivalDate: toStringOrEmpty(raw.arrival_date),
   };
 }
+

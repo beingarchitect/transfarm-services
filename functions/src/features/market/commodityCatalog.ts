@@ -112,3 +112,18 @@ export function flattenDefaultCatalog(): string[] {
   const names = new Set(Object.values(DEFAULT_COMMODITY_CATALOG).flat());
   return [...names].sort();
 }
+
+/** Looks up the category for a given commodity name from the catalog. */
+export function findCategoryForCommodity(
+  commodity: string,
+  catalog: Record<string, string[]> = DEFAULT_COMMODITY_CATALOG,
+): string | null {
+  const clean = commodity.trim().toLowerCase();
+  for (const [category, items] of Object.entries(catalog)) {
+    if (items.some((item) => item.trim().toLowerCase() === clean)) {
+      return category;
+    }
+  }
+  return null;
+}
+

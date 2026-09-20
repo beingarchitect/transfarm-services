@@ -1,7 +1,9 @@
 import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { dataGovApiKey } from "../../common/secrets";
 import { getCommoditiesForState } from "./commodityService";
 import { getMandiPrices } from "./service";
+import { syncKarnatakaMandiPrices } from "./syncService";
 import { mandiPriceQuerySchema, marketCommoditiesQuerySchema } from "./types";
 
 /**
@@ -47,8 +49,8 @@ export const getMarketCommodities = onCall(async (request) => {
   }
 
   try {
-    const commodities = await getCommoditiesForState(parsed.data.state);
-    return { commodities };
+    const { categories, commodities } = await getCommoditiesForState(parsed.data.state);
+    return { categories, commodities };
   } catch (err) {
     throw new HttpsError(
       "unavailable",
@@ -56,3 +58,20 @@ export const getMarketCommodities = onCall(async (request) => {
     );
   }
 });
+
+/**
+ * Scheduled cron job running daily at 6:00 PM IST (18:00) when APMC mandis
+ * settle their daily arrivals and prices. Automatically populates and warms
+ * the Firestore database under `mandiPrices/Karnataka/commodities/{crop}/years/{year}`.
+ */
+export const syncKarnatakaMandiPricesDaily = onSchedule(
+  {
+    schedule: "0 18 * * *",
+    timeZone: "Asia/Kolkata",
+    secrets: [dataGovApiKey],
+  },
+  async () => {
+    await syncKarnatakaMandiPrices(dataGovApiKey.value());
+  },
+);
+
