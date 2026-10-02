@@ -15,6 +15,7 @@ export const mandiPriceQuerySchema = z.object({
     .optional(),
   limit: z.number().int().positive().max(MAX_RECORD_LIMIT).default(DEFAULT_RECORD_LIMIT),
   offset: z.number().int().nonnegative().default(0),
+  forceRefresh: z.boolean().optional().default(false),
 });
 
 export type MandiPriceQuery = z.infer<typeof mandiPriceQuerySchema>;
@@ -48,9 +49,43 @@ export interface NormalizedMandiPrice {
 export interface MandiPriceResponse {
   source: MandiDataSource;
   count: number;
+  total?: number;
   records: NormalizedMandiPrice[];
   fetchedAt: string;
 }
+
+/** A compact date-price pair for sparklines and charts. */
+export interface ChartPoint {
+  /** Arrival date in DD/MM/YYYY format. */
+  d: string;
+  /** Modal price in rupees per quintal. */
+  p: number;
+}
+
+/** Lightweight summary for a commodity card on the watchlist screen. */
+export interface MandiCommoditySummary {
+  commodity: string;
+  category: string | null;
+  /** Most recent published record matching farm location or state. */
+  latest: NormalizedMandiPrice | null;
+  /** Chronologically sorted historical price points for 1-2 year trend chart. */
+  chartPoints: ChartPoint[];
+  /** Upstream dataset or cache source. */
+  source: MandiDataSource;
+  fetchedAt: string;
+}
+
+/** Query schema for lightweight summary. */
+export const mandiSummaryQuerySchema = z.object({
+  state: z.string().trim().min(1),
+  commodity: z.string().trim().min(1),
+  district: z.string().trim().optional(),
+  taluk: z.string().trim().optional(),
+  village: z.string().trim().optional(),
+  hobli: z.string().trim().optional(),
+});
+
+export type MandiSummaryQuery = z.infer<typeof mandiSummaryQuerySchema>;
 
 /** Raw record shape from the primary ("Variety-wise Daily Market Prices") resource. */
 export interface PrimaryRawRecord {

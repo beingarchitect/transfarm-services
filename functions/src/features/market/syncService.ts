@@ -66,6 +66,7 @@ export async function syncKarnatakaMandiPrices(apiKey: string): Promise<{ synced
           commodity,
           limit: DEFAULT_RECORD_LIMIT,
           offset: 0,
+          forceRefresh: true,
         },
         apiKey,
       );

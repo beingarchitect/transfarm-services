@@ -2,9 +2,9 @@ import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { dataGovApiKey } from "../../common/secrets";
 import { getCommoditiesForState } from "./commodityService";
-import { getMandiPrices } from "./service";
+import { getMandiPrices, getMandiSummary } from "./service";
 import { syncKarnatakaMandiPrices } from "./syncService";
-import { mandiPriceQuerySchema, marketCommoditiesQuerySchema } from "./types";
+import { mandiPriceQuerySchema, mandiSummaryQuerySchema, marketCommoditiesQuerySchema } from "./types";
 
 /**
  * Callable function used by the Flutter app to fetch normalized mandi
@@ -27,6 +27,31 @@ export const getMandiMarketPrices = onCall(
       throw new HttpsError(
         "unavailable",
         `Failed to fetch mandi market prices: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  },
+);
+
+/**
+ * Callable function used by the Flutter app to fetch lightweight summary data
+ * (latest record + compact {d, p} points array for the sparkline) for a
+ * commodity card. Reduces payload from ~150 KB down to ~1.5 KB per crop.
+ */
+export const getMandiMarketSummary = onCall(
+  { secrets: [dataGovApiKey] },
+  async (request) => {
+    const parsed = mandiSummaryQuerySchema.safeParse(request.data ?? {});
+
+    if (!parsed.success) {
+      throw new HttpsError("invalid-argument", "Invalid mandi summary query", parsed.error.flatten());
+    }
+
+    try {
+      return await getMandiSummary(parsed.data, dataGovApiKey.value());
+    } catch (err) {
+      throw new HttpsError(
+        "unavailable",
+        `Failed to fetch mandi summary: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   },
@@ -69,6 +94,7 @@ export const syncKarnatakaMandiPricesDaily = onSchedule(
     schedule: "0 18 * * *",
     timeZone: "Asia/Kolkata",
     secrets: [dataGovApiKey],
+    minInstances: 0,
   },
   async () => {
     await syncKarnatakaMandiPrices(dataGovApiKey.value());
