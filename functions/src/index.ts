@@ -13,3 +13,4 @@ export {
   syncKarnatakaMandiPricesDaily,
 } from "./features/market";
 export { getWeatherForecast } from "./features/weather";
+export { askAiAssistant } from "./features/ai";
