@@ -83,6 +83,7 @@ export const mandiSummaryQuerySchema = z.object({
   taluk: z.string().trim().optional(),
   village: z.string().trim().optional(),
   hobli: z.string().trim().optional(),
+  market: z.string().trim().optional(),
 });
 
 export type MandiSummaryQuery = z.infer<typeof mandiSummaryQuerySchema>;

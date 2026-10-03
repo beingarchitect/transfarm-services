@@ -74,8 +74,7 @@ export const getMarketCommodities = onCall(async (request) => {
   }
 
   try {
-    const { categories, commodities } = await getCommoditiesForState(parsed.data.state);
-    return { categories, commodities };
+    return await getCommoditiesForState(parsed.data.state);
   } catch (err) {
     throw new HttpsError(
       "unavailable",

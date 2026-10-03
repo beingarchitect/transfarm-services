@@ -218,22 +218,32 @@ export async function getMandiSummary(
   const allRecords = fullData.records;
   const category = findCategoryForCommodity(query.commodity);
 
-  // 2. Filter records by location (district/taluk/village/hobli)
-  const locationTerms = [query.district, query.taluk, query.village, query.hobli]
-    .filter((t): t is string => !!t && t.trim().length > 0)
-    .map((t) => t.trim().toLowerCase());
-
+  // 2. Filter records by market (if specified) or location (district/taluk/village/hobli)
   let localRecords = allRecords;
-  if (locationTerms.length > 0) {
-    const matched = allRecords.filter((r) => {
-      const d = r.district.toLowerCase();
-      const m = r.market.toLowerCase();
-      return locationTerms.some(
-        (term) => d.includes(term) || m.includes(term) || term.includes(d) || term.includes(m),
-      );
-    });
+  if (query.market && query.market.trim().length > 0) {
+    const marketTerm = query.market.trim().toLowerCase();
+    const matched = allRecords.filter((r) =>
+      r.market.toLowerCase().includes(marketTerm) || marketTerm.includes(r.market.toLowerCase()),
+    );
     if (matched.length > 0) {
       localRecords = matched;
+    }
+  } else {
+    const locationTerms = [query.district, query.taluk, query.village, query.hobli]
+      .filter((t): t is string => !!t && t.trim().length > 0)
+      .map((t) => t.trim().toLowerCase());
+
+    if (locationTerms.length > 0) {
+      const matched = allRecords.filter((r) => {
+        const d = r.district.toLowerCase();
+        const m = r.market.toLowerCase();
+        return locationTerms.some(
+          (term) => d.includes(term) || m.includes(term) || term.includes(d) || term.includes(m),
+        );
+      });
+      if (matched.length > 0) {
+        localRecords = matched;
+      }
     }
   }
 

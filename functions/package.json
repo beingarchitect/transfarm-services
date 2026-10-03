@@ -14,7 +14,8 @@
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "seed:markets": "tsc && node lib/scripts/seedMarketCommodities.js"
   },
   "dependencies": {
     "@google/genai": "2.24.0",
