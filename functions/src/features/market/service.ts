@@ -208,6 +208,7 @@ export async function getMandiSummary(
     {
       state: query.state,
       commodity: query.commodity,
+      market: query.market,
       limit: 500,
       offset: 0,
       forceRefresh: false,
