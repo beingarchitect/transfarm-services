@@ -14,3 +14,4 @@ export {
 } from "./features/market";
 export { getWeatherForecast } from "./features/weather";
 export { askAiAssistant } from "./features/ai";
+export { recordDailyRainfall } from "./features/rainfall";
