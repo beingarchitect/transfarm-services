@@ -30,8 +30,9 @@ export async function fetchJson<T>(
     const response = await fetch(url, { signal: controller.signal });
 
     if (!response.ok) {
+      const body = (await response.text().catch(() => "")).trim().slice(0, 200);
       throw new UpstreamHttpError(
-        `Request to ${new URL(url).origin} failed with status ${response.status}`,
+        `Request to ${new URL(url).origin} failed with status ${response.status}${body ? `: ${body}` : ""}`,
         response.status,
       );
     }

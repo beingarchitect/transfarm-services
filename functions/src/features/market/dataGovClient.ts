@@ -25,7 +25,8 @@ export async function fetchDataGovResource<T>({
   offset,
 }: FetchResourceOptions): Promise<T[]> {
   const url = new URL(`${DATA_GOV_BASE_URL}/${resourceId}`);
-  url.searchParams.set("api-key", apiKey);
+  // Trim guards against a trailing newline sneaking into the secret (e.g. `echo key | secrets:set`).
+  url.searchParams.set("api-key", apiKey.trim());
   url.searchParams.set("format", "json");
   url.searchParams.set("limit", String(limit));
   url.searchParams.set("offset", String(offset));
