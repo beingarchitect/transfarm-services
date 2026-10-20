@@ -7,13 +7,24 @@ import { syncKarnatakaMandiPrices } from "./syncService";
 import { mandiPriceQuerySchema, mandiSummaryQuerySchema, marketCommoditiesQuerySchema } from "./types";
 
 /**
+ * data.gov.in's nginx rejects Cloud Run's shared egress IPs with a bare 403,
+ * so functions that call it route all outbound traffic through the default VPC,
+ * where Cloud NAT (`transfarm-egress-nat`) gives them the static IP
+ * `transfarm-egress-ip` (8.234.98.116).
+ */
+const dataGovEgress = {
+  networkInterface: { network: "default", subnetwork: "default" },
+  vpcEgress: "ALL_TRAFFIC",
+} as const;
+
+/**
  * Callable function used by the Flutter app to fetch normalized mandi
  * (market) prices. Internally queries data.gov.in, preferring the
  * variety-wise dataset and transparently falling back to the legacy
  * dataset if needed.
  */
 export const getMandiMarketPrices = onCall(
-  { secrets: [dataGovApiKey] },
+  { secrets: [dataGovApiKey], ...dataGovEgress },
   async (request) => {
     const parsed = mandiPriceQuerySchema.safeParse(request.data ?? {});
 
@@ -38,7 +49,7 @@ export const getMandiMarketPrices = onCall(
  * commodity card. Reduces payload from ~150 KB down to ~1.5 KB per crop.
  */
 export const getMandiMarketSummary = onCall(
-  { secrets: [dataGovApiKey] },
+  { secrets: [dataGovApiKey], ...dataGovEgress },
   async (request) => {
     const parsed = mandiSummaryQuerySchema.safeParse(request.data ?? {});
 
@@ -94,6 +105,7 @@ export const syncKarnatakaMandiPricesDaily = onSchedule(
     timeZone: "Asia/Kolkata",
     secrets: [dataGovApiKey],
     minInstances: 0,
+    ...dataGovEgress,
   },
   async () => {
     await syncKarnatakaMandiPrices(dataGovApiKey.value());
