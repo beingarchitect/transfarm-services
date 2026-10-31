@@ -16,7 +16,9 @@
     "logs": "firebase functions:log",
     "lint": "eslint .",
     "seed:markets": "tsc && node lib/scripts/seedMarketCommodities.js",
-    "seed:master": "tsc && node lib/scripts/seedMasterData.js"
+    "seed:master": "tsc && node lib/scripts/seedMasterData.js",
+    "backfill:member-roles": "tsc && node lib/scripts/backfillMemberRoles.js",
+    "backfill:subscriptions": "tsc && node lib/scripts/backfillFarmSubscriptions.js"
   },
   "dependencies": {
     "@google/genai": "2.24.0",
