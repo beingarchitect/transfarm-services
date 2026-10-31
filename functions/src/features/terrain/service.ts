@@ -1,5 +1,6 @@
 import { HttpsError } from "firebase-functions/v2/https";
 import { db } from "../../common/firebaseAdmin";
+import { roleOf } from "../members/service";
 import { boundarySignature, LatLng, summarise, TerrainSummary, ElevationSample } from "./analysis";
 import { sampleInsidePolygon } from "./dem";
 
@@ -19,14 +20,9 @@ export interface PlotTerrain {
   samples: ElevationSample[];
 }
 
-/** Same check the security rules use: owner, or any role in memberRoles. */
+/** Same check the security rules use: a member document, any role. */
 async function assertFarmMember(farmId: string, uid: string): Promise<void> {
-  const farm = await db.collection("farms").doc(farmId).get();
-  const data = farm.data();
-  const isMember =
-    data !== undefined &&
-    (data.ownerId === uid || (data.memberRoles && typeof data.memberRoles[uid] === "string"));
-  if (!isMember) {
+  if ((await roleOf(farmId, uid)) === undefined) {
     throw new HttpsError("permission-denied", "Not a member of this farm");
   }
 }

@@ -1,13 +1,13 @@
 import { randomInt } from "crypto";
 import { HttpsError } from "firebase-functions/v2/https";
-import { DocumentReference, Transaction } from "firebase-admin/firestore";
 import { db } from "../../common/firebaseAdmin";
 
 export const INVITES_COLLECTION = "farm_invites";
 const FARMS_COLLECTION = "farms";
+const MEMBERS_SUBCOLLECTION = "members";
 const USERS_COLLECTION = "users";
 
-/** Roles an invite code can grant; owner is the farm's ownerId, never invited. */
+/** Roles an invite code can grant; the owner is never invited. */
 export const INVITABLE_ROLES = ["coowner", "manager", "guest"] as const;
 export type InvitableRole = (typeof INVITABLE_ROLES)[number];
 
@@ -20,9 +20,17 @@ const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const MAX_CODE_ATTEMPTS = 5;
 // Firestore's gRPC status for a create() on an existing document.
 const ALREADY_EXISTS = 6;
+// Firestore's limit on values in an "in" filter.
+const IN_FILTER_LIMIT = 30;
 
-interface FarmMember {
+/**
+ * One person on a farm: `farms/{farmId}/members/{profileId}`. profileId is
+ * the user's uid, or `pending_*` for someone added by phone who hasn't
+ * signed up. The owner has one too, with role "owner".
+ */
+export interface MemberDoc {
   profileId: string;
+  farmId: string;
   role: string;
   addedAt: string;
 }
@@ -31,8 +39,6 @@ interface FarmDoc {
   name?: string;
   ownerId?: string;
   isActive?: boolean;
-  members?: FarmMember[];
-  memberRoles?: Record<string, string>;
 }
 
 export interface InviteResult {
@@ -42,10 +48,14 @@ export interface InviteResult {
   expiresAt: string;
 }
 
-/** Caller's role on the farm: "owner" via ownerId, else their member role. */
-function roleOf(farm: FarmDoc, uid: string): string | undefined {
-  if (farm.ownerId === uid) return "owner";
-  return farm.memberRoles?.[uid] ?? farm.members?.find((m) => m.profileId === uid)?.role;
+export function memberRef(farmId: string, profileId: string) {
+  return db.collection(FARMS_COLLECTION).doc(farmId).collection(MEMBERS_SUBCOLLECTION).doc(profileId);
+}
+
+/** The caller's role on the farm, or undefined if they aren't on it. */
+export async function roleOf(farmId: string, uid: string): Promise<string | undefined> {
+  const member = await memberRef(farmId, uid).get();
+  return member.exists ? (member.get("role") as string) : undefined;
 }
 
 function generateCode(): string {
@@ -62,10 +72,7 @@ function generateCode(): string {
  * managers and guests only (mirrors FarmPermissionService on the app).
  */
 export async function createInvite(farmId: string, role: InvitableRole, uid: string): Promise<InviteResult> {
-  const farm = (await db.collection(FARMS_COLLECTION).doc(farmId).get()).data() as FarmDoc | undefined;
-  if (!farm) throw new HttpsError("not-found", "Farm not found");
-
-  const callerRole = roleOf(farm, uid);
+  const callerRole = await roleOf(farmId, uid);
   if (callerRole !== "owner" && callerRole !== "coowner") {
     throw new HttpsError("permission-denied", "Only owners and co-owners can invite members");
   }
@@ -98,25 +105,10 @@ export async function createInvite(farmId: string, role: InvitableRole, uid: str
   throw new HttpsError("resource-exhausted", "Could not generate a unique invite code, try again");
 }
 
-/** Adds `uid` to the farm with `role`, keeping members and memberRoles in step. */
-function addMemberInTransaction(
-  tx: Transaction,
-  farmRef: DocumentReference,
-  farm: FarmDoc,
-  uid: string,
-  role: string,
-  now: string,
-): void {
-  tx.update(farmRef, {
-    members: [...(farm.members ?? []), { profileId: uid, role, addedAt: now }],
-    [`memberRoles.${uid}`]: role,
-    updatedAt: now,
-  });
-}
-
 /**
- * Redeems an invite code for the signed-in user: adds them to the farm and
- * marks the code used, in one transaction so a code can't be redeemed twice.
+ * Redeems an invite code for the signed-in user: adds their member document
+ * and marks the code used, in one transaction so a code can't be redeemed
+ * twice.
  */
 export async function joinWithInvite(code: string, uid: string): Promise<{ farmId: string; farmName: string }> {
   const inviteRef = db.collection(INVITES_COLLECTION).doc(code);
@@ -131,15 +123,17 @@ export async function joinWithInvite(code: string, uid: string): Promise<{ farmI
     }
 
     const farmId = invite.farmId as string;
-    const farmRef = db.collection(FARMS_COLLECTION).doc(farmId);
-    const farm = (await tx.get(farmRef)).data() as FarmDoc | undefined;
+    const farm = (await tx.get(db.collection(FARMS_COLLECTION).doc(farmId))).data() as FarmDoc | undefined;
     if (!farm || farm.isActive === false) throw new HttpsError("not-found", "This farm is no longer available");
-    if (roleOf(farm, uid) !== undefined) {
+
+    const ref = memberRef(farmId, uid);
+    if ((await tx.get(ref)).exists) {
       throw new HttpsError("already-exists", "You are already a member of this farm");
     }
 
     const now = new Date().toISOString();
-    addMemberInTransaction(tx, farmRef, farm, uid, invite.role as string, now);
+    const member: MemberDoc = { profileId: uid, farmId, role: invite.role as string, addedAt: now };
+    tx.create(ref, member);
     tx.update(inviteRef, { status: "used", usedBy: uid, usedAt: now });
 
     return { farmId, farmName: farm.name ?? "" };
@@ -148,10 +142,10 @@ export async function joinWithInvite(code: string, uid: string): Promise<{ farmI
 
 /**
  * Hands farm memberships that an owner pre-created for this user's phone
- * number (or verified email) over to their account. Pending members are
- * stored as `users/pending_*` profiles referenced from farm `members`; each
- * reference is swapped for the user's uid and the pending profile is marked
- * `linked` so it isn't claimed again.
+ * number (or verified email) over to their account. Each pending member
+ * document (`members/pending_*`) is replaced by one under the user's uid,
+ * keeping its role, and the `users/pending_*` profile is marked `linked` so
+ * it isn't claimed again.
  */
 export async function claimPendingMemberships(
   uid: string,
@@ -174,41 +168,33 @@ export async function claimPendingMemberships(
   }
   if (pendingIds.size === 0) return { farmIds: [] };
 
-  // Members are an array of maps, which Firestore can't query by profileId,
-  // so scan farms. Fine at current scale; revisit with a memberIds field.
-  const farms = await db.collection(FARMS_COLLECTION).get();
-  const farmIds: string[] = [];
+  const ids = [...pendingIds];
+  const pendingMembers = [];
+  for (let i = 0; i < ids.length; i += IN_FILTER_LIMIT) {
+    const snapshot = await db
+      .collectionGroup(MEMBERS_SUBCOLLECTION)
+      .where("profileId", "in", ids.slice(i, i + IN_FILTER_LIMIT))
+      .get();
+    pendingMembers.push(...snapshot.docs);
+  }
 
-  for (const farmSnap of farms.docs) {
-    const listed = (farmSnap.data() as FarmDoc).members ?? [];
-    if (!listed.some((m) => pendingIds.has(m.profileId))) continue;
+  const farmIds = new Set<string>();
+  for (const pendingSnap of pendingMembers) {
+    const pending = pendingSnap.data() as MemberDoc;
+    const farmId = pendingSnap.ref.parent.parent!.id;
+    const ref = memberRef(farmId, uid);
 
     await db.runTransaction(async (tx) => {
-      const farm = (await tx.get(farmSnap.ref)).data() as FarmDoc | undefined;
-      if (!farm) return;
-      const pending = (farm.members ?? []).find((m) => pendingIds.has(m.profileId));
-      if (!pending) return;
-
-      // The first pending entry becomes the user; any others (or all of
-      // them, if the user is already a member) are dropped.
-      const alreadyMember = roleOf(farm, uid) !== undefined;
-      let placed = alreadyMember;
-      const members: FarmMember[] = [];
-      for (const m of farm.members ?? []) {
-        if (!pendingIds.has(m.profileId)) {
-          members.push(m);
-        } else if (!placed) {
-          members.push({ ...m, profileId: uid });
-          placed = true;
-        }
+      const [current, existing] = await Promise.all([tx.get(pendingSnap.ref), tx.get(ref)]);
+      if (!current.exists) return;
+      // Already on the farm (e.g. joined by code too): keep that role.
+      if (!existing.exists) {
+        const member: MemberDoc = { profileId: uid, farmId, role: pending.role, addedAt: pending.addedAt };
+        tx.create(ref, member);
       }
-      const memberRoles = { ...(farm.memberRoles ?? {}) };
-      pendingIds.forEach((id) => delete memberRoles[id]);
-      if (!alreadyMember) memberRoles[uid] = pending.role;
-
-      tx.update(farmSnap.ref, { members, memberRoles, updatedAt: new Date().toISOString() });
+      tx.delete(pendingSnap.ref);
     });
-    farmIds.push(farmSnap.id);
+    farmIds.add(farmId);
   }
 
   const now = new Date().toISOString();
@@ -218,5 +204,5 @@ export async function claimPendingMemberships(
   );
   await batch.commit();
 
-  return { farmIds };
+  return { farmIds: [...farmIds] };
 }
