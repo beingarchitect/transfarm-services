@@ -19,6 +19,7 @@
     "seed:master": "tsc && node lib/scripts/seedMasterData.js",
     "migrate:members": "tsc && node lib/scripts/migrateMembersToSubcollection.js",
     "backfill:subscriptions": "tsc && node lib/scripts/backfillFarmSubscriptions.js",
+    "test": "tsc && node --test lib/features/account/plan.test.js",
     "migrate:subscriptions": "tsc && node lib/scripts/migrateSubscriptionsToOwners.js"
   },
   "dependencies": {
