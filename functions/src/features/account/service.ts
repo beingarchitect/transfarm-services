@@ -156,7 +156,8 @@ export async function deleteAccount(uid: string): Promise<void> {
   await deleteQuery(linkedProfiles.docs);
 
   await db.collection(USER_SUBSCRIPTIONS_COLLECTION).doc(uid).delete();
-  await db.collection(USERS_COLLECTION).doc(uid).delete();
+  // Recursive: push device tokens live under the profile.
+  await db.recursiveDelete(db.collection(USERS_COLLECTION).doc(uid));
   await getStorage()
     .bucket()
     .deleteFiles({ prefix: `profile_pictures/${uid}` });
