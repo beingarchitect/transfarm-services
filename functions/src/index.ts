@@ -17,3 +17,4 @@ export { askAiAssistant } from "./features/ai";
 export { recordDailyRainfall } from "./features/rainfall";
 export { getPlotTerrain } from "./features/terrain";
 export { claimPendingMemberships, createFarmInvite, joinFarmWithInvite } from "./features/members";
+export { initNewFarmSubscription, syncOwnerSubscription } from "./features/subscriptions";
