@@ -2,6 +2,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { DEFAULT_FARM_LISTS, FARM_LIST_DOCS, FarmLists } from "../features/farmDefaults/defaults";
 
 // Karnataka 31 districts and their taluks
 const KARNATAKA_DISTRICTS_AND_TALUKS: Record<string, string[]> = {
@@ -47,27 +48,6 @@ const INDIAN_STATES = [
   "West Bengal"
 ];
 
-const DEFAULT_EXPENSE_CATEGORIES = [
-  { name: "Labour", description: "Daily wages, piece-rate, and contract labour" },
-  { name: "Seeds & Plants", description: "Seedlings, saplings, nursery, and hybrid seeds" },
-  { name: "Fertilizers", description: "Organic manure, compost, chemical fertilizers, DAP, urea" },
-  { name: "Pesticides", description: "Insecticides, fungicides, herbicides, and crop protection sprays" },
-  { name: "Equipment", description: "Tractor hire, harvester rentals, tools, and implements" },
-  { name: "Fuel", description: "Diesel, petrol, oil, and generator fuel" },
-  { name: "Water & Irrigation", description: "Drip, sprinkler, pump repairs, borewell, electricity" },
-  { name: "Transport", description: "Vehicle rental, produce hauling to APMC, logistics" },
-  { name: "Maintenance", description: "Fencing, sheds, pipeline repairs, farm infrastructure" },
-  { name: "Miscellaneous", description: "Other general farm operational expenses" },
-];
-
-const DEFAULT_INCOME_CATEGORIES = [
-  { name: "Crop Sales", description: "Revenue from harvest sold at APMC or to buyers" },
-  { name: "By-product Sales", description: "Sale of fodder, husk, straw, wood, compost" },
-  { name: "Government Subsidies", description: "PM-Kisan, state schemes, solar/drip subsidy" },
-  { name: "Equipment Rental", description: "Leasing tractor, harvester, or machinery to others" },
-  { name: "Miscellaneous Income", description: "Other agricultural and farm income" },
-];
-
 async function main() {
   const possibleKeyPaths = [
     process.env.GOOGLE_APPLICATION_CREDENTIALS,
@@ -106,19 +86,15 @@ async function main() {
   console.log(`   - Seeded ${INDIAN_STATES.length} Indian States`);
   console.log(`   - Seeded 31 Karnataka Districts with ${Object.values(KARNATAKA_DISTRICTS_AND_TALUKS).flat().length} Taluks`);
 
-  console.log("2. Seeding masterData/default_expense_categories...");
-  await db.collection("masterData").doc("default_expense_categories").set({
-    categories: DEFAULT_EXPENSE_CATEGORIES,
-    updatedAt: new Date().toISOString(),
-  }, { merge: true });
-  console.log(`   - Seeded ${DEFAULT_EXPENSE_CATEGORIES.length} default expense categories`);
-
-  console.log("3. Seeding masterData/default_income_categories...");
-  await db.collection("masterData").doc("default_income_categories").set({
-    categories: DEFAULT_INCOME_CATEGORIES,
-    updatedAt: new Date().toISOString(),
-  }, { merge: true });
-  console.log(`   - Seeded ${DEFAULT_INCOME_CATEGORIES.length} default income categories`);
+  console.log("2. Seeding default lists for new farms...");
+  for (const list of Object.keys(FARM_LIST_DOCS) as (keyof FarmLists)[]) {
+    const docId = FARM_LIST_DOCS[list];
+    await db.collection("masterData").doc(docId).set({
+      categories: DEFAULT_FARM_LISTS[list],
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+    console.log(`   - Seeded ${DEFAULT_FARM_LISTS[list].length} items into masterData/${docId}`);
+  }
 
   console.log("Master data successfully seeded into Firestore /masterData!");
 }
