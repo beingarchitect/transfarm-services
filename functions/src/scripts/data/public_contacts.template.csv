@@ -1,0 +1,4 @@
+id,name,category,state,districts,phoneNumbers,email,address,sourceUrl,verifiedOn
+sample-soil-lab-mysuru,SAMPLE Soil Testing Lab,soil_testing,Karnataka,Mysuru,+910000000000,,"SAMPLE address, Mysuru",https://example.com,2026-11-03
+sample-state-office,SAMPLE Agriculture Office,agriculture_department,Karnataka,,+910000000001|+910000000002,,,https://example.com,2026-11-03
+sample-national-helpline,SAMPLE Helpline,helpline,ALL,,+910000000003,,,https://example.com,2026-11-03

@@ -68,7 +68,8 @@ function memberships(uid: string) {
 
 async function displayName(uid: string): Promise<string> {
   const user = (await db.collection(USERS_COLLECTION).doc(uid).get()).data();
-  return `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim();
+  // Records from before first and last name were merged have no `name`.
+  return user?.name ?? `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim();
 }
 
 export async function previewAccountDeletion(uid: string): Promise<AccountDeletionPreview> {
