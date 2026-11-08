@@ -1,3 +1,6 @@
+import { HttpsError } from "firebase-functions/v2/https";
+import { db } from "../../common/firebaseAdmin";
+import { toolsAllowedBy } from "./access";
 import { AI_FUNCTION_DECLARATIONS } from "./tools";
 import { AiFunctionCall, AskAiAssistantQuery, AskAiAssistantResponse } from "./types";
 
@@ -26,11 +29,32 @@ export async function getGenAIClient() {
   };
 }
 
+/** Members who can use MitrAI; guests can't. */
+const MITRA_ROLES = new Set(["owner", "coowner", "manager"]);
+
+/**
+ * The lookups [farmId] lets MitrAI use, checked against the farm itself rather
+ * than anything the app says. Only farm members may ask.
+ */
+export async function allowedDeclarations(farmId: string, uid: string | undefined) {
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required");
+  const farmRef = db.collection("farms").doc(farmId);
+  const [farm, member] = await Promise.all([farmRef.get(), farmRef.collection("members").doc(uid).get()]);
+  if (!farm.exists) throw new HttpsError("not-found", "Farm not found");
+  const role = farm.get("ownerId") === uid ? "owner" : member.get("role");
+  if (!MITRA_ROLES.has(role)) throw new HttpsError("permission-denied", "Not allowed to use MitrAI on this farm");
+  return toolsAllowedBy(AI_FUNCTION_DECLARATIONS, farm.get("aiDataAccess"));
+}
+
 /**
  * Generates an AI assistant response for a given chat message, history,
- * system prompt, and tools.
+ * system prompt, and tools. [declarations] are the lookups to offer; all of
+ * them when not given.
  */
-export async function askAi(query: AskAiAssistantQuery): Promise<AskAiAssistantResponse> {
+export async function askAi(
+  query: AskAiAssistantQuery,
+  declarations: readonly { name: string }[] = AI_FUNCTION_DECLARATIONS,
+): Promise<AskAiAssistantResponse> {
   const { ai, source } = await getGenAIClient();
 
   // Reconstruct conversation contents for Gemini / Vertex AI
@@ -86,11 +110,11 @@ export async function askAi(query: AskAiAssistantQuery): Promise<AskAiAssistantR
       topK: 40,
       topP: 0.95,
       maxOutputTokens: 2048,
-      tools: [
-        {
-          functionDeclarations: AI_FUNCTION_DECLARATIONS as unknown as Record<string, unknown>[],
-        },
-      ],
+      // No tools at all when the farm allows none: an empty list is an error.
+      tools:
+        declarations.length > 0
+          ? [{ functionDeclarations: declarations as unknown as Record<string, unknown>[] }]
+          : undefined,
     },
   });
 

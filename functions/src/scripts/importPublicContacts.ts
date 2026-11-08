@@ -114,7 +114,7 @@ function toRecord(cells: Record<string, string>): { id: string; errors: string[]
 }
 
 function readRecords(file: string) {
-  const [header, ...rows] = parseCsv(fs.readFileSync(file, "utf8").replace(/^﻿/, ""));
+  const [header, ...rows] = parseCsv(fs.readFileSync(file, "utf8").replace(/^\uFEFF/, ""));
   const missing = COLUMNS.filter((column) => !header?.map((h) => h.trim()).includes(column));
   if (missing.length > 0) throw new Error(`Missing columns: ${missing.join(", ")}`);
 

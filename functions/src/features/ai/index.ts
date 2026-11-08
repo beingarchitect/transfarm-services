@@ -1,5 +1,5 @@
 import { HttpsError, onCall } from "firebase-functions/v2/https";
-import { askAi } from "./service";
+import { allowedDeclarations, askAi } from "./service";
 import { askAiAssistantQuerySchema } from "./types";
 
 /**
@@ -17,8 +17,14 @@ export const askAiAssistant = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Invalid AI assistant query", parsed.error.flatten());
   }
 
+  // Which farm lookups to offer. Older app versions don't send a farm and keep
+  // every lookup; newer ones get only what the farm allows its members.
+  const declarations = parsed.data.farmId
+    ? await allowedDeclarations(parsed.data.farmId, request.auth?.uid)
+    : undefined;
+
   try {
-    return await askAi(parsed.data);
+    return await askAi(parsed.data, declarations);
   } catch (err) {
     throw new HttpsError(
       "unavailable",

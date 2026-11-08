@@ -1,6 +1,6 @@
 /**
- * 12 farm management function declarations matching transfarm-app's
- * AIFunctionDeclarations. Allows the AI model to request farm data when needed.
+ * Farm lookups the model can ask the app to run (AIFunctionHandler). Each one
+ * belongs to a data group in access.ts, and only allowed groups are offered.
  */
 export const AI_FUNCTION_DECLARATIONS = [
   {
@@ -250,6 +250,62 @@ export const AI_FUNCTION_DECLARATIONS = [
         end_date: {
           type: "STRING",
           description: "End date in ISO 8601 format (YYYY-MM-DD). Optional, defaults to current month end",
+        },
+      },
+      required: ["farm_id"],
+    },
+  },
+  {
+    name: "get_crops",
+    description:
+      "Get the farm's crops with variety, plot, area in acres, season, year, status, growth stage, sowing date and expected or actual harvest date. Use this when the user asks about their crops, what is growing where, or harvest timing.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        farm_id: { type: "STRING", description: "The unique identifier of the farm" },
+      },
+      required: ["farm_id"],
+    },
+  },
+  {
+    name: "get_soil_tests",
+    description:
+      "Get soil test results with sample date, plot and zone, lab, and measured values such as pH, organic carbon, nitrogen, phosphorus and potassium. Use this for questions about soil health, fertilizer needs or soil test history.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        farm_id: { type: "STRING", description: "The unique identifier of the farm" },
+      },
+      required: ["farm_id"],
+    },
+  },
+  {
+    name: "get_field_plots",
+    description:
+      "Get the farm's mapped plots with survey number, area in acres, zones (crop, season, status, area), landmarks such as borewells and sheds, and pipeline length. Use this for questions about the farm's land, layout, plots or water sources.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        farm_id: { type: "STRING", description: "The unique identifier of the farm" },
+      },
+      required: ["farm_id"],
+    },
+  },
+  {
+    name: "get_irrigation_logs",
+    description:
+      "Get irrigation records with date, duration in minutes, method (flood, furrow, drip, sprinkler and so on), plot and zone. Use this for questions about watering history or irrigation schedules.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        farm_id: { type: "STRING", description: "The unique identifier of the farm" },
+        start_date: {
+          type: "STRING",
+          description: "Start date in ISO 8601 format (YYYY-MM-DD). Optional, defaults to 30 days ago",
+        },
+        end_date: {
+          type: "STRING",
+          description: "End date in ISO 8601 format (YYYY-MM-DD). Optional, defaults to today",
         },
       },
       required: ["farm_id"],

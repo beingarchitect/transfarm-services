@@ -32,6 +32,8 @@ export const chatContentSchema = z.object({
 export type ChatContent = z.infer<typeof chatContentSchema>;
 
 export const askAiAssistantQuerySchema = z.object({
+  /** Farm whose records the lookups read; only those it allows are offered. */
+  farmId: z.string().min(1).max(128).optional(),
   message: z.string().optional(),
   systemInstruction: z.string().optional(),
   history: z.array(chatContentSchema).optional(),
