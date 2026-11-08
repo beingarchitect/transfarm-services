@@ -14,10 +14,7 @@
  * email, address, sourceUrl, verifiedOn (YYYY-MM-DD). Other columns, such as
  * reviewNote, are for whoever maintains the sheet and aren't loaded.
  */
-import * as path from "path";
-import * as fs from "fs";
-import { initializeApp, cert, getApps } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { initFirestore, readCsvRows, splitList } from "./csvImport";
 
 const COLLECTION = "public_contacts";
 const CATEGORIES = ["soil_testing", "kvk", "agriculture_department", "helpline"];
@@ -33,51 +30,6 @@ const COLUMNS = [
   "sourceUrl",
   "verifiedOn",
 ];
-
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = "";
-  let quoted = false;
-
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    if (quoted) {
-      if (char === '"' && text[i + 1] === '"') {
-        field += '"';
-        i++;
-      } else if (char === '"') {
-        quoted = false;
-      } else {
-        field += char;
-      }
-    } else if (char === '"') {
-      quoted = true;
-    } else if (char === ",") {
-      row.push(field);
-      field = "";
-    } else if (char === "\n") {
-      row.push(field);
-      rows.push(row);
-      row = [];
-      field = "";
-    } else if (char !== "\r") {
-      field += char;
-    }
-  }
-  if (field || row.length > 0) {
-    row.push(field);
-    rows.push(row);
-  }
-  return rows.filter((r) => r.some((cell) => cell.trim()));
-}
-
-function splitList(value: string): string[] {
-  return value
-    .split("|")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
 
 function toRecord(cells: Record<string, string>): { id: string; errors: string[]; data: Record<string, unknown> } {
   const errors: string[] = [];
@@ -114,13 +66,7 @@ function toRecord(cells: Record<string, string>): { id: string; errors: string[]
 }
 
 function readRecords(file: string) {
-  const [header, ...rows] = parseCsv(fs.readFileSync(file, "utf8").replace(/^\uFEFF/, ""));
-  const missing = COLUMNS.filter((column) => !header?.map((h) => h.trim()).includes(column));
-  if (missing.length > 0) throw new Error(`Missing columns: ${missing.join(", ")}`);
-
-  const records = rows.map((row) =>
-    toRecord(Object.fromEntries(header.map((name, i) => [name.trim(), (row[i] ?? "").trim()]))),
-  );
+  const records = readCsvRows(file, COLUMNS).map(toRecord);
 
   const problems: string[] = [];
   const seen = new Set<string>();
@@ -133,24 +79,6 @@ function readRecords(file: string) {
   });
   if (problems.length > 0) throw new Error(`Fix these and try again:\n${problems.join("\n")}`);
   return records;
-}
-
-function initFirestore() {
-  const possibleKeyPaths = [
-    process.env.GOOGLE_APPLICATION_CREDENTIALS,
-    path.resolve(__dirname, "../../../../transfarm-app/scripts/serviceAccountKey.json"),
-    path.resolve(__dirname, "../../serviceAccountKey.json"),
-    path.resolve(process.cwd(), "serviceAccountKey.json"),
-  ].filter((p): p is string => !!p && fs.existsSync(p));
-
-  if (getApps().length === 0) {
-    if (possibleKeyPaths.length > 0) {
-      initializeApp({ credential: cert(possibleKeyPaths[0]) });
-    } else {
-      initializeApp();
-    }
-  }
-  return getFirestore();
 }
 
 async function main() {
