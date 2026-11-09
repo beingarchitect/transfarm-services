@@ -6,8 +6,10 @@ import { seedFarmDefaults } from "./service";
 // this trigger. App versions that seed categories themselves don't set it, so
 // their farms are skipped rather than getting duplicates. Infrequent, so no warm
 // instance; retried because a failure would leave the farm with empty lists.
+// Runs beside the database (Mumbai): the app waits on it while a new farm is
+// set up, so every round trip counts.
 export const seedNewFarmDefaults = onDocumentCreated(
-  { document: "farms/{farmId}", minInstances: 0, retry: true },
+  { document: "farms/{farmId}", region: "asia-south1", minInstances: 0, retry: true },
   async (event) => {
     const language = event.data?.get("defaultsLanguage");
     if (!isSupportedLanguage(language)) return;
