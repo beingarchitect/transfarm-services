@@ -58,7 +58,12 @@ export function splitList(value: string): string[] {
  * mark at the start, which is dropped.
  */
 export function readCsvRows(file: string, columns: readonly string[]): Record<string, string>[] {
-  const [header, ...rows] = parseCsv(fs.readFileSync(file, "utf8").replace(/^\uFEFF/, ""));
+  return csvTextRows(fs.readFileSync(file, "utf8"), columns);
+}
+
+/** As [readCsvRows], for CSV text already in hand (such as an upload). */
+export function csvTextRows(text: string, columns: readonly string[]): Record<string, string>[] {
+  const [header, ...rows] = parseCsv(text.replace(/^\uFEFF/, ""));
   const names = header?.map((h) => h.trim()) ?? [];
   const missing = columns.filter((column) => !names.includes(column));
   if (missing.length > 0) throw new Error(`Missing columns: ${missing.join(", ")}`);

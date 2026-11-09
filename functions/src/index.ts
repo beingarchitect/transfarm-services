@@ -20,4 +20,18 @@ export { claimPendingMemberships, createFarmInvite, joinFarmWithInvite } from ".
 export { initNewFarmSubscription, syncOwnerSubscription } from "./features/subscriptions";
 export { deleteMyAccount, getAccountDeletionPreview } from "./features/account";
 export { seedNewFarmDefaults } from "./features/farmDefaults";
-export { adminWhoAmI } from "./features/admin";
+export {
+  adminAuditLog,
+  adminFindUser,
+  adminGetFarm,
+  adminImportEvents,
+  adminListEvents,
+  adminListFarms,
+  adminListGrants,
+  adminListUsers,
+  adminSeedDefaultLists,
+  adminSetTier,
+  adminStats,
+  adminWhoAmI,
+  buildAdminStats,
+} from "./features/admin";

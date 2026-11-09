@@ -18,7 +18,7 @@
 import { initFirestore, readCsvRows, splitList } from "./csvImport";
 
 const COLLECTION = "public_events";
-const COLUMNS = [
+export const EVENT_COLUMNS = [
   "id",
   "title",
   "titleKn",
@@ -80,8 +80,9 @@ export function toEvent(cells: Record<string, string>): {
   };
 }
 
-function readEvents(file: string) {
-  const events = readCsvRows(file, COLUMNS).map(toEvent);
+/** Every row as an event, and what's wrong with any, by line number. */
+export function checkEvents(rows: Record<string, string>[]) {
+  const events = rows.map(toEvent);
   const problems: string[] = [];
   const seen = new Set<string>();
   events.forEach((event, i) => {
@@ -91,6 +92,11 @@ function readEvents(file: string) {
     if (seen.has(event.id)) problems.push(`${line}: duplicate id "${event.id}"`);
     seen.add(event.id);
   });
+  return { events, problems };
+}
+
+function readEvents(file: string) {
+  const { events, problems } = checkEvents(readCsvRows(file, EVENT_COLUMNS));
   if (problems.length > 0) throw new Error(`Fix these and try again:\n${problems.join("\n")}`);
   return events;
 }
