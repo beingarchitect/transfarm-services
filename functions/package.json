@@ -19,8 +19,10 @@
     "seed:master": "tsc && node lib/scripts/seedMasterData.js",
     "migrate:members": "tsc && node lib/scripts/migrateMembersToSubcollection.js",
     "backfill:subscriptions": "tsc && node lib/scripts/backfillFarmSubscriptions.js",
-    "test": "tsc && node --test lib/features/account/plan.test.js lib/features/farmDefaults/defaults.test.js lib/features/ai/access.test.js lib/scripts/importPublicEvents.test.js",
-    "migrate:subscriptions": "tsc && node lib/scripts/migrateSubscriptionsToOwners.js"
+    "test": "tsc && node --test lib/features/account/plan.test.js lib/features/farmDefaults/defaults.test.js lib/features/ai/access.test.js lib/scripts/importPublicEvents.test.js lib/features/admin/admin.test.js",
+    "migrate:subscriptions": "tsc && node lib/scripts/migrateSubscriptionsToOwners.js",
+    "grant:tier": "tsc && node lib/scripts/grantTier.js",
+    "admin:set": "tsc && node lib/scripts/setAdmin.js"
   },
   "dependencies": {
     "@google/genai": "2.24.0",
