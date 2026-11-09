@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { adminRefusal } from "./access";
 import { grantedSubscription, isPurchased, normalisePhone, parseDay } from "./grants";
 import { perWeek, toDate, within } from "./stats";
+import { rowsOf } from "./usage";
 
 const admin = {
   admin: true,
@@ -86,4 +87,15 @@ test("stored dates come as ISO strings or Timestamps", () => {
   assert.equal(toDate({ toDate: () => new Date(0) })?.getTime(), 0);
   assert.equal(toDate("not a date"), null);
   assert.equal(toDate(undefined), null);
+});
+
+test("Analytics rows become values, leaving out unset ones", () => {
+  const rows = rowsOf({
+    rows: [
+      { dimensionValues: [{ value: "ExpenseListScreen" }], metricValues: [{ value: "42" }, { value: "630.5" }] },
+      { dimensionValues: [{ value: "(not set)" }], metricValues: [{ value: "3" }] },
+    ],
+  });
+  assert.deepEqual(rows, [{ dims: ["ExpenseListScreen"], mets: [42, 630.5] }]);
+  assert.deepEqual(rowsOf(undefined), []);
 });

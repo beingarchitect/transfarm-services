@@ -32,6 +32,7 @@ export {
   adminSeedDefaultLists,
   adminSetTier,
   adminStats,
+  adminUsage,
   adminWhoAmI,
   buildAdminStats,
 } from "./features/admin";

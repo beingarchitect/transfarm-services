@@ -5,6 +5,7 @@ import { z } from "zod";
 import { adminRefusal } from "./access";
 import { GRANTABLE_TIERS, parseDay } from "./grants";
 import { auditLog, farmDetail, importEvents, listEvents, listFarms, listUsers, seedDefaultLists } from "./explore";
+import { usageReport } from "./usage";
 import { describeUser, findUser, GrantRefused, latestStats, listGrants, refreshStats, setTier } from "./service";
 
 // Functions for the admin website (transfarm-admin). Every one starts with
@@ -151,4 +152,25 @@ export const adminListEvents = onCall(ADMIN, async (request) => {
 export const adminSeedDefaultLists = onCall(ADMIN, async (request) => {
   const by = requireAdmin(request);
   return seedDefaultLists(by);
+});
+
+// --- Usage -------------------------------------------------------------------------
+
+/** How the app is used, from Google Analytics, over the last [days] days. */
+export const adminUsage = onCall({ ...ADMIN, timeoutSeconds: 60 }, async (request) => {
+  requireAdmin(request);
+  const { days } = parse(z.object({ days: z.union([z.literal(7), z.literal(30), z.literal(90)]).default(7) }), request.data ?? {});
+  try {
+    return await usageReport(days);
+  } catch (e) {
+    const status = (e as { response?: { status?: number } }).response?.status;
+    logger.error("Analytics report failed", { status, error: (e as Error).message });
+    if (status === 403) {
+      throw new HttpsError(
+        "failed-precondition",
+        "The server can't read Google Analytics yet. Check its service account is a Viewer on the property.",
+      );
+    }
+    throw new HttpsError("unavailable", "Couldn't reach Google Analytics. Try again shortly.");
+  }
 });
