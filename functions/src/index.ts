@@ -21,6 +21,12 @@ export { initNewFarmSubscription, syncOwnerSubscription } from "./features/subsc
 export { deleteMyAccount, getAccountDeletionPreview } from "./features/account";
 export { seedNewFarmDefaults } from "./features/farmDefaults";
 export {
+  cleanupBudgetAttachments,
+  cleanupExpenseAttachments,
+  cleanupIncomeAttachments,
+  cleanupSoilTestAttachments,
+} from "./features/attachments";
+export {
   adminAuditLog,
   adminFindUser,
   adminGetFarm,
