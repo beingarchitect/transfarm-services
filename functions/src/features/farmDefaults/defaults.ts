@@ -10,6 +10,26 @@ export function isSupportedLanguage(value: unknown): value is Language {
   return SUPPORTED_LANGUAGES.includes(value as Language);
 }
 
+/**
+ * Farm types a farmer can pick during setup (several, for a mixed farm).
+ * Stored on the farm as `farmProfile.farmTypes`; the app has the same keys.
+ */
+export const FARM_TYPES = [
+  "field_crops",
+  "vegetables",
+  "fruits",
+  "plantation",
+  "terrace_garden",
+  "livestock",
+] as const;
+export type FarmType = (typeof FARM_TYPES)[number];
+
+/** The valid farm types in [value], ignoring anything else. */
+export function farmTypesFrom(value: unknown): FarmType[] {
+  if (!Array.isArray(value)) return [];
+  return FARM_TYPES.filter((t) => value.includes(t));
+}
+
 const itemSchema = z.object({
   /** Saved on the farm's copy as `defaultKey`; never changes when a name is reworded. */
   key: z.string().regex(/^[a-z0-9_]+$/),
@@ -18,8 +38,27 @@ const itemSchema = z.object({
   translations: z.object({ hi: z.string().min(1), kn: z.string().min(1) }),
   /** English only for now, so it's left off farms created in other languages. */
   description: z.string().optional(),
+  /** Only for farms of at least one of these types (e.g. Milk Sales). */
+  onlyFor: z.array(z.string()).optional(),
+  /** Left out when the farm is only these types (e.g. no Labour for a terrace garden). */
+  skipWhenOnly: z.array(z.string()).optional(),
 });
 export type FarmListItem = z.infer<typeof itemSchema>;
+
+/**
+ * The items a farm of [farmTypes] starts with. With no types (setup skipped,
+ * or an older app) that's every general item, as before farm types existed.
+ * The app's setup preview applies the same rules (FarmSetupSource).
+ */
+export function itemsForFarm(items: FarmListItem[], farmTypes: readonly string[]): FarmListItem[] {
+  return items.filter((item) => {
+    if (item.onlyFor && !item.onlyFor.some((t) => farmTypes.includes(t))) return false;
+    if (item.skipWhenOnly && farmTypes.length > 0 && farmTypes.every((t) => item.skipWhenOnly!.includes(t))) {
+      return false;
+    }
+    return true;
+  });
+}
 
 /** What each `masterData` document holds. */
 export const farmListDocSchema = z.object({ categories: z.array(itemSchema).min(1) });
@@ -38,6 +77,9 @@ export const FARM_LIST_DOCS: Record<keyof FarmLists, string> = {
   contactRoles: "default_contact_roles",
 };
 
+/** A terrace / kitchen garden on its own doesn't hire labour or tractors. */
+const TERRACE = ["terrace_garden"] as const;
+
 /**
  * Written to `masterData` by `npm run seed:master`, so the lists can change
  * without a release. Also the fallback if a document can't be read, so a new
@@ -45,38 +87,47 @@ export const FARM_LIST_DOCS: Record<keyof FarmLists, string> = {
  */
 export const DEFAULT_FARM_LISTS: FarmLists = {
   expenseCategories: [
-    { key: "labour", name: "Labour", translations: { hi: "मज़दूरी", kn: "ಕೂಲಿ" }, description: "Daily wages, piece-rate, and contract labour" },
+    { key: "labour", name: "Labour", translations: { hi: "मज़दूरी", kn: "ಕೂಲಿ" }, description: "Daily wages, piece-rate, and contract labour", skipWhenOnly: [...TERRACE] },
     { key: "seeds_plants", name: "Seeds & Plants", translations: { hi: "बीज और पौधे", kn: "ಬೀಜ ಮತ್ತು ಸಸಿಗಳು" }, description: "Seedlings, saplings, nursery, and hybrid seeds" },
     { key: "fertilizers", name: "Fertilizers", translations: { hi: "उर्वरक", kn: "ಗೊಬ್ಬರ" }, description: "Organic manure, compost, chemical fertilizers, DAP, urea" },
     { key: "pesticides", name: "Pesticides", translations: { hi: "कीटनाशक", kn: "ಕೀಟನಾಶಕ" }, description: "Insecticides, fungicides, herbicides, and crop protection sprays" },
-    { key: "equipment", name: "Equipment", translations: { hi: "उपकरण", kn: "ಉಪಕರಣಗಳು" }, description: "Tractor hire, harvester rentals, tools, and implements" },
-    { key: "fuel", name: "Fuel", translations: { hi: "ईंधन", kn: "ಇಂಧನ" }, description: "Diesel, petrol, oil, and generator fuel" },
+    { key: "equipment", name: "Equipment", translations: { hi: "उपकरण", kn: "ಉಪಕರಣಗಳು" }, description: "Tractor hire, harvester rentals, tools, and implements", skipWhenOnly: [...TERRACE] },
+    { key: "fuel", name: "Fuel", translations: { hi: "ईंधन", kn: "ಇಂಧನ" }, description: "Diesel, petrol, oil, and generator fuel", skipWhenOnly: [...TERRACE] },
     { key: "water_irrigation", name: "Water & Irrigation", translations: { hi: "पानी और सिंचाई", kn: "ನೀರು ಮತ್ತು ನೀರಾವರಿ" }, description: "Drip, sprinkler, pump repairs, borewell, electricity" },
-    { key: "transport", name: "Transport", translations: { hi: "परिवहन", kn: "ಸಾರಿಗೆ" }, description: "Vehicle rental, produce hauling to APMC, logistics" },
+    { key: "transport", name: "Transport", translations: { hi: "परिवहन", kn: "ಸಾರಿಗೆ" }, description: "Vehicle rental, produce hauling to APMC, logistics", skipWhenOnly: [...TERRACE] },
     { key: "maintenance", name: "Maintenance", translations: { hi: "रखरखाव", kn: "ನಿರ್ವಹಣೆ" }, description: "Fencing, sheds, pipeline repairs, farm infrastructure" },
+    { key: "packing_grading", name: "Packing & Grading", translations: { hi: "पैकिंग और ग्रेडिंग", kn: "ಪ್ಯಾಕಿಂಗ್ ಮತ್ತು ಗ್ರೇಡಿಂಗ್" }, description: "Crates, boxes, sorting and grading before sale", onlyFor: ["vegetables", "fruits"] },
+    { key: "harvesting", name: "Harvesting & Plucking", translations: { hi: "कटाई और तुड़ाई", kn: "ಕೊಯ್ಲು ಮತ್ತು ಕೀಳುವಿಕೆ" }, description: "Harvest, plucking and climbing charges", onlyFor: ["fruits", "plantation"] },
+    { key: "feed_fodder", name: "Animal Feed & Fodder", translations: { hi: "पशु आहार और चारा", kn: "ಪಶು ಆಹಾರ ಮತ್ತು ಮೇವು" }, description: "Cattle feed, fodder, mineral mixture", onlyFor: ["livestock"] },
+    { key: "veterinary", name: "Veterinary & Animal Care", translations: { hi: "पशु चिकित्सा", kn: "ಪಶು ವೈದ್ಯಕೀಯ" }, description: "Vet visits, vaccines, medicines, insemination", onlyFor: ["livestock"] },
+    { key: "pots_soil", name: "Pots, Grow Bags & Potting Mix", translations: { hi: "गमले, ग्रो बैग और मिट्टी", kn: "ಕುಂಡ, ಗ್ರೋ ಬ್ಯಾಗ್ ಮತ್ತು ಮಣ್ಣು" }, description: "Containers, grow bags, cocopeat and potting soil", onlyFor: [...TERRACE] },
     { key: "miscellaneous", name: "Miscellaneous", translations: { hi: "अन्य", kn: "ಇತರೆ" }, description: "Other general farm operational expenses" },
   ],
   incomeCategories: [
     { key: "crop_sales", name: "Crop Sales", translations: { hi: "फसल बिक्री", kn: "ಬೆಳೆ ಮಾರಾಟ" }, description: "Revenue from harvest sold at APMC or to buyers" },
+    { key: "milk_sales", name: "Milk & Dairy Sales", translations: { hi: "दूध और डेयरी बिक्री", kn: "ಹಾಲು ಮತ್ತು ಡೈರಿ ಮಾರಾಟ" }, description: "Milk to the dairy society, ghee, curd", onlyFor: ["livestock"] },
+    { key: "livestock_sales", name: "Livestock Sales", translations: { hi: "पशुधन बिक्री", kn: "ಜಾನುವಾರು ಮಾರಾಟ" }, description: "Sale of cattle, goats, sheep, poultry", onlyFor: ["livestock"] },
     { key: "by_product_sales", name: "By-product Sales", translations: { hi: "उप-उत्पाद बिक्री", kn: "ಉಪ ಉತ್ಪನ್ನ ಮಾರಾಟ" }, description: "Sale of fodder, husk, straw, wood, compost" },
     { key: "government_subsidies", name: "Government Subsidies", translations: { hi: "सरकारी सब्सिडी", kn: "ಸರ್ಕಾರಿ ಸಹಾಯಧನ" }, description: "PM-Kisan, state schemes, solar/drip subsidy" },
-    { key: "equipment_rental", name: "Equipment Rental", translations: { hi: "उपकरण किराया", kn: "ಉಪಕರಣ ಬಾಡಿಗೆ" }, description: "Leasing tractor, harvester, or machinery to others" },
+    { key: "equipment_rental", name: "Equipment Rental", translations: { hi: "उपकरण किराया", kn: "ಉಪಕರಣ ಬಾಡಿಗೆ" }, description: "Leasing tractor, harvester, or machinery to others", skipWhenOnly: [...TERRACE] },
     { key: "miscellaneous", name: "Miscellaneous Income", translations: { hi: "अन्य आय", kn: "ಇತರೆ ಆದಾಯ" }, description: "Other agricultural and farm income" },
   ],
   inventoryCategories: [
     { key: "seeds", name: "Seeds", translations: { hi: "बीज", kn: "ಬೀಜಗಳು" } },
     { key: "fertilizers", name: "Fertilizers", translations: { hi: "उर्वरक", kn: "ಗೊಬ್ಬರ" } },
     { key: "pesticides", name: "Pesticides", translations: { hi: "कीटनाशक", kn: "ಕೀಟನಾಶಕ" } },
+    { key: "animal_feed", name: "Animal Feed", translations: { hi: "पशु आहार", kn: "ಪಶು ಆಹಾರ" }, onlyFor: ["livestock"] },
     { key: "tools_equipment", name: "Tools & Equipment", translations: { hi: "औज़ार और उपकरण", kn: "ಸಲಕರಣೆ ಮತ್ತು ಉಪಕರಣಗಳು" } },
-    { key: "fuel", name: "Fuel", translations: { hi: "ईंधन", kn: "ಇಂಧನ" } },
+    { key: "fuel", name: "Fuel", translations: { hi: "ईंधन", kn: "ಇಂಧನ" }, skipWhenOnly: [...TERRACE] },
     { key: "other", name: "Other", translations: { hi: "अन्य", kn: "ಇತರೆ" } },
   ],
   contactRoles: [
-    { key: "labourer", name: "Labourer", translations: { hi: "मज़दूर", kn: "ಕೂಲಿ ಕಾರ್ಮಿಕ" } },
+    { key: "labourer", name: "Labourer", translations: { hi: "मज़दूर", kn: "ಕೂಲಿ ಕಾರ್ಮಿಕ" }, skipWhenOnly: [...TERRACE] },
     { key: "supplier", name: "Supplier", translations: { hi: "आपूर्तिकर्ता", kn: "ಪೂರೈಕೆದಾರ" } },
     { key: "buyer", name: "Buyer", translations: { hi: "खरीदार", kn: "ಖರೀದಿದಾರ" } },
-    { key: "trader_agent", name: "Trader/Agent", translations: { hi: "व्यापारी/एजेंट", kn: "ವ್ಯಾಪಾರಿ/ಏಜೆಂಟ್" } },
-    { key: "mechanic", name: "Mechanic", translations: { hi: "मैकेनिक", kn: "ಮೆಕ್ಯಾನಿಕ್" } },
+    { key: "trader_agent", name: "Trader/Agent", translations: { hi: "व्यापारी/एजेंट", kn: "ವ್ಯಾಪಾರಿ/ಏಜೆಂಟ್" }, skipWhenOnly: [...TERRACE] },
+    { key: "mechanic", name: "Mechanic", translations: { hi: "मैकेनिक", kn: "ಮೆಕ್ಯಾನಿಕ್" }, skipWhenOnly: [...TERRACE] },
+    { key: "veterinarian", name: "Veterinarian", translations: { hi: "पशु चिकित्सक", kn: "ಪಶು ವೈದ್ಯರು" }, onlyFor: ["livestock"] },
     { key: "agriculture_officer", name: "Agriculture Officer", translations: { hi: "कृषि अधिकारी", kn: "ಕೃಷಿ ಅಧಿಕಾರಿ" } },
   ],
 };

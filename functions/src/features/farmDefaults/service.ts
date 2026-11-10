@@ -7,6 +7,7 @@ import {
   FarmListItem,
   farmListDocSchema,
   FarmLists,
+  itemsForFarm,
   Language,
 } from "./defaults";
 
@@ -38,12 +39,23 @@ async function loadLists(): Promise<FarmLists> {
 }
 
 /**
- * Adds the default categories and contact roles to a new farm. Triggers can
- * run more than once, so `defaultsSeededAt` is set in the same transaction: a
- * rerun can't bring back something the user has since renamed or deleted.
+ * Adds the default categories and contact roles to a new farm, picked for its
+ * [farmTypes] (none: the general lists). Triggers can run more than once, so
+ * `defaultsSeededAt` is set in the same transaction: a rerun can't bring back
+ * something the user has since renamed or deleted.
  */
-export async function seedFarmDefaults(farmId: string, language: Language): Promise<void> {
-  const lists = await loadLists();
+export async function seedFarmDefaults(
+  farmId: string,
+  language: Language,
+  farmTypes: readonly string[] = [],
+): Promise<void> {
+  const all = await loadLists();
+  const lists: FarmLists = {
+    expenseCategories: itemsForFarm(all.expenseCategories, farmTypes),
+    incomeCategories: itemsForFarm(all.incomeCategories, farmTypes),
+    inventoryCategories: itemsForFarm(all.inventoryCategories, farmTypes),
+    contactRoles: itemsForFarm(all.contactRoles, farmTypes),
+  };
   const farmRef = db.collection(FARMS_COLLECTION).doc(farmId);
 
   await db.runTransaction(async (tx) => {

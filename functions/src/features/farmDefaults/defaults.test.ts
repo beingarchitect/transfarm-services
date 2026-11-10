@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Timestamp } from "firebase-admin/firestore";
-import { buildDefaultDocs, DEFAULT_FARM_LISTS, farmListDocSchema, isSupportedLanguage } from "./defaults";
+import {
+  buildDefaultDocs,
+  DEFAULT_FARM_LISTS,
+  farmListDocSchema,
+  farmTypesFrom,
+  isSupportedLanguage,
+  itemsForFarm,
+} from "./defaults";
 
 const now = new Date("2026-01-01T00:00:00.000Z");
 
@@ -88,4 +95,37 @@ test("contact roles use timestamps and the category lists use ISO strings", () =
       assert.equal(doc.data.updatedAt, now.toISOString());
     }
   }
+});
+
+const keysFor = (list: keyof typeof DEFAULT_FARM_LISTS, types: string[]) =>
+  itemsForFarm(DEFAULT_FARM_LISTS[list], types).map((item) => item.key);
+
+test("a farm with no type gets the general lists, as before farm types", () => {
+  const keys = keysFor("expenseCategories", []);
+  assert.ok(keys.includes("labour"));
+  assert.ok(!keys.includes("feed_fodder"));
+  assert.ok(!keys.includes("pots_soil"));
+  assert.ok(!keysFor("incomeCategories", []).includes("milk_sales"));
+});
+
+test("livestock farms get animal categories and a vet", () => {
+  assert.ok(keysFor("expenseCategories", ["livestock"]).includes("feed_fodder"));
+  assert.ok(keysFor("incomeCategories", ["livestock"]).includes("milk_sales"));
+  assert.ok(keysFor("contactRoles", ["livestock"]).includes("veterinarian"));
+});
+
+test("a terrace garden alone drops labour and tractors; mixed with crops it keeps them", () => {
+  const terrace = keysFor("expenseCategories", ["terrace_garden"]);
+  assert.ok(!terrace.includes("labour"));
+  assert.ok(!terrace.includes("equipment"));
+  assert.ok(terrace.includes("pots_soil"));
+  const mixed = keysFor("expenseCategories", ["terrace_garden", "vegetables"]);
+  assert.ok(mixed.includes("labour"));
+  assert.ok(mixed.includes("packing_grading"));
+});
+
+test("only known farm types are read from the farm", () => {
+  assert.deepEqual(farmTypesFrom(["livestock", "spaceship", 3]), ["livestock"]);
+  assert.deepEqual(farmTypesFrom("livestock"), []);
+  assert.deepEqual(farmTypesFrom(undefined), []);
 });
