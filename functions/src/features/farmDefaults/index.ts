@@ -1,5 +1,5 @@
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
-import { farmTypesFrom, isSupportedLanguage } from "./defaults";
+import { farmingPracticeFrom, farmTypesFrom, isSupportedLanguage } from "./defaults";
 import { seedFarmDefaults } from "./service";
 
 // The app sets `defaultsLanguage` when it creates a farm and leaves the lists to
@@ -13,8 +13,10 @@ export const seedNewFarmDefaults = onDocumentCreated(
   async (event) => {
     const language = event.data?.get("defaultsLanguage");
     if (!isSupportedLanguage(language)) return;
-    // Set by the setup wizard when the farmer answered "type of farm".
+    // Set by the setup wizard when the farmer answered "how do you farm?" and
+    // "what kind of farm?".
     const farmTypes = farmTypesFrom(event.data?.get("farmProfile.farmTypes"));
-    await seedFarmDefaults(event.params.farmId, language, farmTypes);
+    const practice = farmingPracticeFrom(event.data?.get("farmProfile.farmingPractice"));
+    await seedFarmDefaults(event.params.farmId, language, farmTypes, practice);
   },
 );

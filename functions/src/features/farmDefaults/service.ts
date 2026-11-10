@@ -48,13 +48,15 @@ export async function seedFarmDefaults(
   farmId: string,
   language: Language,
   farmTypes: readonly string[] = [],
+  practice: string | null = null,
 ): Promise<void> {
   const all = await loadLists();
+  const pick = (items: FarmListItem[]) => itemsForFarm(items, farmTypes, practice);
   const lists: FarmLists = {
-    expenseCategories: itemsForFarm(all.expenseCategories, farmTypes),
-    incomeCategories: itemsForFarm(all.incomeCategories, farmTypes),
-    inventoryCategories: itemsForFarm(all.inventoryCategories, farmTypes),
-    contactRoles: itemsForFarm(all.contactRoles, farmTypes),
+    expenseCategories: pick(all.expenseCategories),
+    incomeCategories: pick(all.incomeCategories),
+    inventoryCategories: pick(all.inventoryCategories),
+    contactRoles: pick(all.contactRoles),
   };
   const farmRef = db.collection(FARMS_COLLECTION).doc(farmId);
 

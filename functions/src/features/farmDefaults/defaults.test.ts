@@ -5,6 +5,7 @@ import {
   buildDefaultDocs,
   DEFAULT_FARM_LISTS,
   farmListDocSchema,
+  farmingPracticeFrom,
   farmTypesFrom,
   isSupportedLanguage,
   itemsForFarm,
@@ -128,4 +129,36 @@ test("only known farm types are read from the farm", () => {
   assert.deepEqual(farmTypesFrom(["livestock", "spaceship", 3]), ["livestock"]);
   assert.deepEqual(farmTypesFrom("livestock"), []);
   assert.deepEqual(farmTypesFrom(undefined), []);
+});
+
+const keysWith = (list: keyof typeof DEFAULT_FARM_LISTS, types: string[], practice: string | null) =>
+  itemsForFarm(DEFAULT_FARM_LISTS[list], types, practice).map((item) => item.key);
+
+test("organic and natural farms get organic inputs; chemical farms don't", () => {
+  assert.ok(keysWith("expenseCategories", [], "organic").includes("organic_inputs"));
+  assert.ok(keysWith("expenseCategories", [], "natural").includes("organic_inputs"));
+  assert.ok(keysWith("inventoryCategories", [], "transitioning").includes("organic_inputs"));
+  assert.ok(!keysWith("expenseCategories", [], "chemical").includes("organic_inputs"));
+  assert.ok(!keysWith("expenseCategories", [], null).includes("organic_inputs"));
+});
+
+test("certification is for organic and transitioning farms only", () => {
+  assert.ok(keysWith("expenseCategories", [], "organic").includes("organic_certification"));
+  assert.ok(!keysWith("expenseCategories", [], "natural").includes("organic_certification"));
+});
+
+test("the practice doesn't stop a terrace garden counting as terrace-only", () => {
+  const keys = keysWith("expenseCategories", ["terrace_garden"], "organic");
+  assert.ok(!keys.includes("labour"));
+  assert.ok(keys.includes("organic_inputs"));
+});
+
+test("agroforestry farms get tree produce sales", () => {
+  assert.ok(keysWith("incomeCategories", ["agroforestry"], null).includes("tree_produce"));
+});
+
+test("only known practices are read from the farm", () => {
+  assert.equal(farmingPracticeFrom("organic"), "organic");
+  assert.equal(farmingPracticeFrom("biodynamic"), null);
+  assert.equal(farmingPracticeFrom(undefined), null);
 });

@@ -19,6 +19,7 @@ export const FARM_TYPES = [
   "vegetables",
   "fruits",
   "plantation",
+  "agroforestry",
   "terrace_garden",
   "livestock",
 ] as const;
@@ -30,6 +31,21 @@ export function farmTypesFrom(value: unknown): FarmType[] {
   return FARM_TYPES.filter((t) => value.includes(t));
 }
 
+/**
+ * How the farmer farms (one answer). Stored as `farmProfile.farmingPractice`;
+ * the app has the same keys. List items can target these in `onlyFor`.
+ */
+export const FARMING_PRACTICES = ["chemical", "organic", "natural", "transitioning", "mixed"] as const;
+export type FarmingPractice = (typeof FARMING_PRACTICES)[number];
+
+/** [value] if it's a known practice, else null. */
+export function farmingPracticeFrom(value: unknown): FarmingPractice | null {
+  return FARMING_PRACTICES.includes(value as FarmingPractice) ? (value as FarmingPractice) : null;
+}
+
+/** Practices that use organic inputs, at least on part of the farm. */
+const ORGANIC_INPUTS = ["organic", "natural", "transitioning", "mixed"];
+
 const itemSchema = z.object({
   /** Saved on the farm's copy as `defaultKey`; never changes when a name is reworded. */
   key: z.string().regex(/^[a-z0-9_]+$/),
@@ -38,21 +54,33 @@ const itemSchema = z.object({
   translations: z.object({ hi: z.string().min(1), kn: z.string().min(1) }),
   /** English only for now, so it's left off farms created in other languages. */
   description: z.string().optional(),
-  /** Only for farms of at least one of these types (e.g. Milk Sales). */
+  /**
+   * Only for farms with at least one of these farm types or this farming
+   * practice (e.g. Milk Sales for livestock, Organic Inputs for organic).
+   */
   onlyFor: z.array(z.string()).optional(),
-  /** Left out when the farm is only these types (e.g. no Labour for a terrace garden). */
+  /**
+   * Left out when the farm's *types* are only these (e.g. no Labour for a
+   * terrace garden). The practice doesn't count here.
+   */
   skipWhenOnly: z.array(z.string()).optional(),
 });
 export type FarmListItem = z.infer<typeof itemSchema>;
 
 /**
- * The items a farm of [farmTypes] starts with. With no types (setup skipped,
- * or an older app) that's every general item, as before farm types existed.
- * The app's setup preview applies the same rules (FarmSetupSource).
+ * The items a farm of [farmTypes] and [practice] starts with. With neither
+ * (setup skipped, or an older app) that's every general item, as before
+ * these questions existed. The app's setup preview applies the same rules
+ * (FarmSetupSource.includedFor).
  */
-export function itemsForFarm(items: FarmListItem[], farmTypes: readonly string[]): FarmListItem[] {
+export function itemsForFarm(
+  items: FarmListItem[],
+  farmTypes: readonly string[],
+  practice: string | null = null,
+): FarmListItem[] {
+  const tags = practice ? [...farmTypes, practice] : farmTypes;
   return items.filter((item) => {
-    if (item.onlyFor && !item.onlyFor.some((t) => farmTypes.includes(t))) return false;
+    if (item.onlyFor && !item.onlyFor.some((t) => tags.includes(t))) return false;
     if (item.skipWhenOnly && farmTypes.length > 0 && farmTypes.every((t) => item.skipWhenOnly!.includes(t))) {
       return false;
     }
@@ -91,13 +119,15 @@ export const DEFAULT_FARM_LISTS: FarmLists = {
     { key: "seeds_plants", name: "Seeds & Plants", translations: { hi: "बीज और पौधे", kn: "ಬೀಜ ಮತ್ತು ಸಸಿಗಳು" }, description: "Seedlings, saplings, nursery, and hybrid seeds" },
     { key: "fertilizers", name: "Fertilizers", translations: { hi: "उर्वरक", kn: "ಗೊಬ್ಬರ" }, description: "Organic manure, compost, chemical fertilizers, DAP, urea" },
     { key: "pesticides", name: "Pesticides", translations: { hi: "कीटनाशक", kn: "ಕೀಟನಾಶಕ" }, description: "Insecticides, fungicides, herbicides, and crop protection sprays" },
+    { key: "organic_inputs", name: "Organic Inputs", translations: { hi: "जैविक इनपुट", kn: "ಸಾವಯವ ಒಳಸುರಿಗಳು" }, description: "Vermicompost, jeevamrutha, bio-fertilizers, neem and other bio-controls", onlyFor: ORGANIC_INPUTS },
+    { key: "organic_certification", name: "Organic Certification", translations: { hi: "जैविक प्रमाणन", kn: "ಸಾವಯವ ಪ್ರಮಾಣೀಕರಣ" }, description: "PGS / NPOP certification, inspection and lab fees", onlyFor: ["organic", "transitioning"] },
     { key: "equipment", name: "Equipment", translations: { hi: "उपकरण", kn: "ಉಪಕರಣಗಳು" }, description: "Tractor hire, harvester rentals, tools, and implements", skipWhenOnly: [...TERRACE] },
     { key: "fuel", name: "Fuel", translations: { hi: "ईंधन", kn: "ಇಂಧನ" }, description: "Diesel, petrol, oil, and generator fuel", skipWhenOnly: [...TERRACE] },
     { key: "water_irrigation", name: "Water & Irrigation", translations: { hi: "पानी और सिंचाई", kn: "ನೀರು ಮತ್ತು ನೀರಾವರಿ" }, description: "Drip, sprinkler, pump repairs, borewell, electricity" },
     { key: "transport", name: "Transport", translations: { hi: "परिवहन", kn: "ಸಾರಿಗೆ" }, description: "Vehicle rental, produce hauling to APMC, logistics", skipWhenOnly: [...TERRACE] },
     { key: "maintenance", name: "Maintenance", translations: { hi: "रखरखाव", kn: "ನಿರ್ವಹಣೆ" }, description: "Fencing, sheds, pipeline repairs, farm infrastructure" },
     { key: "packing_grading", name: "Packing & Grading", translations: { hi: "पैकिंग और ग्रेडिंग", kn: "ಪ್ಯಾಕಿಂಗ್ ಮತ್ತು ಗ್ರೇಡಿಂಗ್" }, description: "Crates, boxes, sorting and grading before sale", onlyFor: ["vegetables", "fruits"] },
-    { key: "harvesting", name: "Harvesting & Plucking", translations: { hi: "कटाई और तुड़ाई", kn: "ಕೊಯ್ಲು ಮತ್ತು ಕೀಳುವಿಕೆ" }, description: "Harvest, plucking and climbing charges", onlyFor: ["fruits", "plantation"] },
+    { key: "harvesting", name: "Harvesting & Plucking", translations: { hi: "कटाई और तुड़ाई", kn: "ಕೊಯ್ಲು ಮತ್ತು ಕೀಳುವಿಕೆ" }, description: "Harvest, plucking and climbing charges", onlyFor: ["fruits", "plantation", "agroforestry"] },
     { key: "feed_fodder", name: "Animal Feed & Fodder", translations: { hi: "पशु आहार और चारा", kn: "ಪಶು ಆಹಾರ ಮತ್ತು ಮೇವು" }, description: "Cattle feed, fodder, mineral mixture", onlyFor: ["livestock"] },
     { key: "veterinary", name: "Veterinary & Animal Care", translations: { hi: "पशु चिकित्सा", kn: "ಪಶು ವೈದ್ಯಕೀಯ" }, description: "Vet visits, vaccines, medicines, insemination", onlyFor: ["livestock"] },
     { key: "pots_soil", name: "Pots, Grow Bags & Potting Mix", translations: { hi: "गमले, ग्रो बैग और मिट्टी", kn: "ಕುಂಡ, ಗ್ರೋ ಬ್ಯಾಗ್ ಮತ್ತು ಮಣ್ಣು" }, description: "Containers, grow bags, cocopeat and potting soil", onlyFor: [...TERRACE] },
@@ -107,6 +137,7 @@ export const DEFAULT_FARM_LISTS: FarmLists = {
     { key: "crop_sales", name: "Crop Sales", translations: { hi: "फसल बिक्री", kn: "ಬೆಳೆ ಮಾರಾಟ" }, description: "Revenue from harvest sold at APMC or to buyers" },
     { key: "milk_sales", name: "Milk & Dairy Sales", translations: { hi: "दूध और डेयरी बिक्री", kn: "ಹಾಲು ಮತ್ತು ಡೈರಿ ಮಾರಾಟ" }, description: "Milk to the dairy society, ghee, curd", onlyFor: ["livestock"] },
     { key: "livestock_sales", name: "Livestock Sales", translations: { hi: "पशुधन बिक्री", kn: "ಜಾನುವಾರು ಮಾರಾಟ" }, description: "Sale of cattle, goats, sheep, poultry", onlyFor: ["livestock"] },
+    { key: "tree_produce", name: "Timber & Tree Produce", translations: { hi: "लकड़ी और पेड़ों की उपज", kn: "ಮರ ಮತ್ತು ಮರದ ಉತ್ಪನ್ನಗಳು" }, description: "Timber, firewood, fruit and leaves from trees", onlyFor: ["agroforestry", "plantation"] },
     { key: "by_product_sales", name: "By-product Sales", translations: { hi: "उप-उत्पाद बिक्री", kn: "ಉಪ ಉತ್ಪನ್ನ ಮಾರಾಟ" }, description: "Sale of fodder, husk, straw, wood, compost" },
     { key: "government_subsidies", name: "Government Subsidies", translations: { hi: "सरकारी सब्सिडी", kn: "ಸರ್ಕಾರಿ ಸಹಾಯಧನ" }, description: "PM-Kisan, state schemes, solar/drip subsidy" },
     { key: "equipment_rental", name: "Equipment Rental", translations: { hi: "उपकरण किराया", kn: "ಉಪಕರಣ ಬಾಡಿಗೆ" }, description: "Leasing tractor, harvester, or machinery to others", skipWhenOnly: [...TERRACE] },
@@ -116,6 +147,7 @@ export const DEFAULT_FARM_LISTS: FarmLists = {
     { key: "seeds", name: "Seeds", translations: { hi: "बीज", kn: "ಬೀಜಗಳು" } },
     { key: "fertilizers", name: "Fertilizers", translations: { hi: "उर्वरक", kn: "ಗೊಬ್ಬರ" } },
     { key: "pesticides", name: "Pesticides", translations: { hi: "कीटनाशक", kn: "ಕೀಟನಾಶಕ" } },
+    { key: "organic_inputs", name: "Organic Inputs", translations: { hi: "जैविक इनपुट", kn: "ಸಾವಯವ ಒಳಸುರಿಗಳು" }, onlyFor: ORGANIC_INPUTS },
     { key: "animal_feed", name: "Animal Feed", translations: { hi: "पशु आहार", kn: "ಪಶು ಆಹಾರ" }, onlyFor: ["livestock"] },
     { key: "tools_equipment", name: "Tools & Equipment", translations: { hi: "औज़ार और उपकरण", kn: "ಸಲಕರಣೆ ಮತ್ತು ಉಪಕರಣಗಳು" } },
     { key: "fuel", name: "Fuel", translations: { hi: "ईंधन", kn: "ಇಂಧನ" }, skipWhenOnly: [...TERRACE] },
