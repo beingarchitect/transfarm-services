@@ -1,4 +1,5 @@
 import { db } from "../../common/firebaseAdmin";
+import { newestFirst } from "./arrivalDate";
 import { findCategoryForCommodity } from "./commodityCatalog";
 import { NormalizedMandiPrice } from "./types";
 
@@ -103,7 +104,7 @@ export async function getStoredMandiPrices(
     isFresh = ageMs < TWELVE_HOURS_MS;
   }
 
-  return { records: allRecords, updatedAt: latestUpdatedAt, isFresh };
+  return { records: newestFirst(allRecords), updatedAt: latestUpdatedAt, isFresh };
 }
 
 /**
@@ -185,7 +186,8 @@ export async function saveMandiPricesToStorage(
       recordsMap.set(recordDedupeKey(r), r);
     }
 
-    const mergedRecords = Array.from(recordsMap.values());
+    // Stored newest first too, so the documents read naturally.
+    const mergedRecords = newestFirst(Array.from(recordsMap.values()));
 
     const docPayload: MandiYearRecordDoc = {
       state,

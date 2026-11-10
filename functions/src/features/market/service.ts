@@ -3,6 +3,7 @@ import { findCategoryForCommodity } from "./commodityCatalog";
 import { fetchDataGovResource } from "./dataGovClient";
 import { FALLBACK_RESOURCE_ID, PRIMARY_RESOURCE_ID } from "./constants";
 import { normalizeFallbackRecord, normalizePrimaryRecord } from "./normalize";
+import { newestFirst } from "./arrivalDate";
 import { getStoredMandiPrices, saveMandiPricesToStorage } from "./priceStorageService";
 import {
   ChartPoint,
@@ -95,7 +96,7 @@ export async function getMandiPrices(query: MandiPriceQuery, apiKey: string): Pr
     liveResult = {
       source: "primary",
       count: records.length,
-      records: records.map(normalizePrimaryRecord),
+      records: newestFirst(records.map(normalizePrimaryRecord)),
       fetchedAt: new Date().toISOString(),
     };
   } catch (err) {
@@ -128,7 +129,7 @@ export async function getMandiPrices(query: MandiPriceQuery, apiKey: string): Pr
       liveResult = {
         source: "fallback",
         count: fallbackRecords.length,
-        records: fallbackRecords.map(normalizeFallbackRecord),
+        records: newestFirst(fallbackRecords.map(normalizeFallbackRecord)),
         fetchedAt: new Date().toISOString(),
       };
     } catch (fallbackErr) {
@@ -248,22 +249,14 @@ export async function getMandiSummary(
     }
   }
 
-  // 3. Find latest record (records are already sorted descending)
-  const latest = localRecords.length > 0 ? localRecords[0] : null;
+  // 3. Latest record by real date (never trust the incoming order)
+  const sortedDesc = newestFirst(localRecords);
+  const latest = sortedDesc.length > 0 ? sortedDesc[0] : null;
 
   // 4. Build chronological chartPoints (oldest to newest)
-  const sortedAsc = [...localRecords]
+  const sortedAsc = sortedDesc
     .filter((r) => r.modalPrice !== null && r.arrivalDate)
-    .sort((a, b) => {
-      const parse = (dStr: string) => {
-        const parts = dStr.split("/");
-        if (parts.length === 3) {
-          return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10)).getTime();
-        }
-        return 0;
-      };
-      return parse(a.arrivalDate) - parse(b.arrivalDate);
-    });
+    .reverse();
 
   // Group by date so each date has a single modal price (averaged if multiple local markets reported)
   const byDate = new Map<string, number[]>();
