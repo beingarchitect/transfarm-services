@@ -39,6 +39,12 @@ export const askAiAssistantQuerySchema = z.object({
   history: z.array(chatContentSchema).optional(),
   parts: z.array(chatPartSchema).optional(),
   model: z.string().optional().default("gemini-2.5-flash-lite"),
+  /**
+   * Offer no farm lookups. For one-shot extraction (bill and soil card
+   * scanning): with lookups on offer the model sometimes calls one instead
+   * of answering, which leaves the caller with no text.
+   */
+  noTools: z.boolean().optional(),
 });
 
 export type AskAiAssistantQuery = z.infer<typeof askAiAssistantQuerySchema>;

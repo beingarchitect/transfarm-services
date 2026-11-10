@@ -19,9 +19,12 @@ export const askAiAssistant = onCall(async (request) => {
 
   // Which farm lookups to offer. Older app versions don't send a farm and keep
   // every lookup; newer ones get only what the farm allows its members.
-  const declarations = parsed.data.farmId
-    ? await allowedDeclarations(parsed.data.farmId, request.auth?.uid)
-    : undefined;
+  // Scanners ask for none: they need a JSON answer, never a lookup.
+  const declarations = parsed.data.noTools
+    ? []
+    : parsed.data.farmId
+      ? await allowedDeclarations(parsed.data.farmId, request.auth?.uid)
+      : undefined;
 
   try {
     return await askAi(parsed.data, declarations);
