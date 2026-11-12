@@ -19,6 +19,7 @@ export { deletePlotTerrain, getPlotTerrain } from "./features/terrain";
 export { claimPendingMemberships, createFarmInvite, joinFarmWithInvite } from "./features/members";
 export { initNewFarmSubscription, syncOwnerSubscription } from "./features/subscriptions";
 export { deleteMyAccount, getAccountDeletionPreview } from "./features/account";
+export { recordConsent } from "./features/consent";
 export { seedNewFarmDefaults } from "./features/farmDefaults";
 export {
   cleanupBudgetAttachments,
