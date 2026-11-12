@@ -28,7 +28,7 @@ test("only the allowed groups' lookups are offered", () => {
 test("land covers crops, soil, plots and irrigation", () => {
   assert.deepEqual(names({ land: true }).sort(), [
     "get_crops",
-    "get_field_plots",
+    "get_farm_plots",
     "get_irrigation_logs",
     "get_soil_tests",
   ]);

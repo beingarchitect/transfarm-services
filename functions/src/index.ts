@@ -15,7 +15,7 @@ export {
 export { getWeatherForecast } from "./features/weather";
 export { askAiAssistant } from "./features/ai";
 export { recordDailyRainfall } from "./features/rainfall";
-export { getPlotTerrain } from "./features/terrain";
+export { deletePlotTerrain, getPlotTerrain } from "./features/terrain";
 export { claimPendingMemberships, createFarmInvite, joinFarmWithInvite } from "./features/members";
 export { initNewFarmSubscription, syncOwnerSubscription } from "./features/subscriptions";
 export { deleteMyAccount, getAccountDeletionPreview } from "./features/account";

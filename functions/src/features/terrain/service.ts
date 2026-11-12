@@ -4,7 +4,12 @@ import { roleOf } from "../members/service";
 import { boundarySignature, LatLng, summarise, TerrainSummary, ElevationSample } from "./analysis";
 import { sampleInsidePolygon } from "./dem";
 
-export const TERRAIN_COLLECTION = "plot_terrain";
+export const PLOTS_COLLECTION = "farm_plots";
+
+/** One cache document per plot: farm_plots/{plotId}/terrain/current. */
+export function terrainRef(plotId: string) {
+  return db.collection(PLOTS_COLLECTION).doc(plotId).collection("terrain").doc("current");
+}
 
 /** Bump to force recomputation after an algorithm change. */
 const ALGORITHM_VERSION = 1;
@@ -29,11 +34,11 @@ async function assertFarmMember(farmId: string, uid: string): Promise<void> {
 
 /**
  * Terrain for a plot, computed from Copernicus GLO-30 on first request and
- * stored in `plot_terrain/{plotId}`. Re-computed only when the boundary
+ * stored in `farm_plots/{plotId}/terrain/current`. Re-computed only when the boundary
  * (or the algorithm) changes, so repeat views cost one Firestore read.
  */
 export async function getPlotTerrain(plotId: string, uid: string): Promise<PlotTerrain> {
-  const plotDoc = await db.collection("field_plots").doc(plotId).get();
+  const plotDoc = await db.collection(PLOTS_COLLECTION).doc(plotId).get();
   const plot = plotDoc.data();
   if (!plot) throw new HttpsError("not-found", "Plot not found");
 
@@ -49,7 +54,7 @@ export async function getPlotTerrain(plotId: string, uid: string): Promise<PlotT
   }
 
   const signature = boundarySignature(boundary);
-  const ref = db.collection(TERRAIN_COLLECTION).doc(plotId);
+  const ref = terrainRef(plotId);
   const cached = (await ref.get()).data() as PlotTerrain | undefined;
   if (
     cached &&

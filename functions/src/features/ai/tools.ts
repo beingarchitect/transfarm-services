@@ -280,7 +280,7 @@ export const AI_FUNCTION_DECLARATIONS = [
     },
   },
   {
-    name: "get_field_plots",
+    name: "get_farm_plots",
     description:
       "Get the farm's mapped plots with survey number, area in acres, zones (crop, season, status, area), landmarks such as borewells and sheds, and pipeline length. Use this for questions about the farm's land, layout, plots or water sources.",
     parameters: {

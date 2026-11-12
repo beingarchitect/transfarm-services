@@ -20,7 +20,7 @@ export const TOOL_GROUPS: Record<string, AiDataGroup> = {
   get_attendance_summary: "workers",
   get_crops: "land",
   get_soil_tests: "land",
-  get_field_plots: "land",
+  get_farm_plots: "land",
   get_irrigation_logs: "land",
 };
 

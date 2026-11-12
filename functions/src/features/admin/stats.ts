@@ -12,7 +12,7 @@ export const RECORD_COLLECTIONS: Record<string, string> = {
   attendance: "Attendance",
   labour_payments: "Labour payments",
   crops: "Crops",
-  field_plots: "Field plots",
+  farm_plots: "Farm plots",
   irrigation_logs: "Irrigation logs",
   soil_tests: "Soil tests",
   inventory: "Inventory items",

@@ -1,6 +1,18 @@
+import { onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { z } from "zod";
-import { getPlotTerrain as computePlotTerrain } from "./service";
+import { getPlotTerrain as computePlotTerrain, PLOTS_COLLECTION, terrainRef } from "./service";
+
+/**
+ * Deleting a plot doesn't delete its subcollections, and the app can't
+ * touch the terrain cache, so the server removes it.
+ */
+export const deletePlotTerrain = onDocumentDeleted(
+  { document: `${PLOTS_COLLECTION}/{plotId}`, region: "asia-south1", minInstances: 0 },
+  async (event) => {
+    await terrainRef(event.params.plotId).delete();
+  },
+);
 
 const plotTerrainQuerySchema = z.object({
   plotId: z.string().min(1).max(128),
