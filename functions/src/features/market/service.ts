@@ -4,6 +4,7 @@ import { fetchDataGovResource } from "./dataGovClient";
 import { FALLBACK_RESOURCE_ID, PRIMARY_RESOURCE_ID } from "./constants";
 import { normalizeFallbackRecord, normalizePrimaryRecord } from "./normalize";
 import { newestFirst } from "./arrivalDate";
+import { bestMandiQuote } from "./bestMandi";
 import { getStoredMandiPrices, saveMandiPricesToStorage } from "./priceStorageService";
 import {
   ChartPoint,
@@ -205,17 +206,19 @@ export async function getMandiSummary(
   apiKey: string,
 ): Promise<MandiCommoditySummary> {
   // 1. Fetch/retrieve the full dataset for this commodity (from Firestore or live API)
-  const fullData = await getMandiPrices(
-    {
-      state: query.state,
-      commodity: query.commodity,
-      market: query.market,
-      limit: 500,
-      offset: 0,
-      forceRefresh: false,
-    },
-    apiKey,
-  );
+  const load = (market?: string) =>
+    getMandiPrices(
+      { state: query.state, commodity: query.commodity, market, limit: 500, offset: 0, forceRefresh: false },
+      apiKey,
+    );
+  const hasMarket = !!query.market && query.market.trim().length > 0;
+  // The best rate needs every mandi; a chosen mandi's own fetch keeps its
+  // full history for the chart.
+  const [fullData, stateWide] = await Promise.all([
+    load(query.market),
+    hasMarket ? load() : Promise.resolve(null),
+  ]);
+  const best = bestMandiQuote((stateWide ?? fullData).records);
 
   const allRecords = fullData.records;
   const category = findCategoryForCommodity(query.commodity);
@@ -277,6 +280,7 @@ export async function getMandiSummary(
     category,
     latest,
     chartPoints,
+    best,
     source: fullData.source,
     fetchedAt: fullData.fetchedAt,
   };

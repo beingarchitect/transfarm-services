@@ -70,6 +70,11 @@ export interface MandiCommoditySummary {
   latest: NormalizedMandiPrice | null;
   /** Chronologically sorted historical price points for 1-2 year trend chart. */
   chartPoints: ChartPoint[];
+  /**
+   * The best recent price across all the state's mandis (see
+   * `bestMandiQuote`), whatever mandi or location the card shows.
+   */
+  best: NormalizedMandiPrice | null;
   /** Upstream dataset or cache source. */
   source: MandiDataSource;
   fetchedAt: string;
